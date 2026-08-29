@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= deptShort %> Event Calendar · <%= instituteName %></title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/html2canvas.min.js"></script>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="brand">
+    <div class="crest">
+      <img src="/logo.jpg" alt="VIT Logo">
+    </div>
+    <div>
+      <h1><%= instituteName %></h1>
+      <div class="dept">Department of <%= deptName %> · Event Calendar</div>
+    </div>
+  </div>
+  <div class="actions">
+    <% if (isAdmin) { %>
+      <div class="admin-badge"><span class="dot"></span>Signed in as <%= admin.username %></div>
+      <button class="btn btn-outline-light" id="logoutBtn">Log out</button>
+    <% } else { %>
+      <button class="btn btn-gold" id="loginBtn">Admin log in</button>
+    <% } %>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="layout">
+
+    <div class="card">
+      <%
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const dows = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      %>
+      <div class="cal-head">
+        <div class="cal-title"><%= monthNames[month - 1] %> <span class="year"><%= year %></span></div>
+        <div class="nav">
+          <a href="/?year=<%= prevYear %>&month=<%= prevMonth %>&category=<%= category %>">‹</a>
+          <a href="/?year=<%= nextYear %>&month=<%= nextMonth %>&category=<%= category %>">›</a>
+        </div>
+      </div>
+
+      <div class="filters">
+        <a class="chip <%= category === 'all' ? 'active' : '' %>"
+           href="/?year=<%= year %>&month=<%= month %>&category=all<%= selectedDate ? '&date=' + selectedDate : '' %>">All</a>
+        <% categories.forEach(function(cat) { %>
+          <a class="chip <%= category === cat ? 'active' : '' %>"
+             href="/?year=<%= year %>&month=<%= month %>&category=<%= cat %><%= selectedDate ? '&date=' + selectedDate : '' %>">
+            <i class="swatch" style="background:var(--<%= cat %>)"></i><%= cat.charAt(0).toUpperCase() + cat.slice(1) %>
+          </a>
+        <% }); %>
+      </div>
+
+      <div class="grid">
+        <% dows.forEach(function(d) { %><div class="dow"><%= d %></div><% }); %>
+      </div>
+      <div class="grid" style="margin-top:6px;">
+        <% cells.forEach(function(cell) { %>
+          <% if (cell.empty) { %>
+            <div class="cell empty"></div>
+          <% } else {
+            const dayEvents = cell.events;
+            const shown = category === 'all' ? dayEvents : dayEvents.filter(e => e.category === category);
+            const hasAny = dayEvents.length > 0;
+            const matchesFilter = category === 'all' ? true : shown.length > 0;
+            const dimmed = hasAny && !matchesFilter ? 'dimmed' : '';
+            const isSelected = selectedDate === cell.date ? 'selected' : '';
+            const isToday = today === cell.date ? 'today' : '';
+            const toShow = category === 'all' ? dayEvents : shown;
+            const maxTags = 2;
+          %>
+            <div class="cell has-day <%= dimmed %> <%= isSelected %> <%= isToday %>">
+              <a class="cell-link" href="/?year=<%= year %>&month=<%= month %>&category=<%= category %>&date=<%= cell.date %>" aria-label="View <%= cell.date %>"></a>
+              <% if (isAdmin) { %>
+                <button class="quick-add" type="button" data-date="<%= cell.date %>" title="Add event on this date">+</button>
+              <% } %>
+              <span class="daynum"><%= cell.day %></span>
+              <% toShow.slice(0, maxTags).forEach(function(e) { %>
+                <div class="evt-tag"><i class="swatch" style="background:var(--<%= e.category %>)"></i><%= e.title %></div>
+              <% }); %>
+              <% if (toShow.length > maxTags) { %>
+                <div class="evt-more">+<%= toShow.length - maxTags %> more</div>
+              <% } %>
+            </div>
+          <% } %>
+        <% }); %>
+      </div>
+
+      <div class="legend">
+        <span><i class="sw"></i> Has event</span>
+        <span><i class="sw" style="background:var(--gold-soft);border:1.5px solid var(--gold);"></i> Selected</span>
+        <span><i class="sw ring"></i> Today</span>
+      </div>
+    </div>
+
+    <div class="right-col">
+    <div class="panel card">
+      <%
+        const CATLABEL = { workshop:'Workshop', seminar:'Seminar', fest:'Fest', exam:'Exam', holiday:'Holiday' };
+        const monthNamesShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        function fmtShort(dateStr){
+          const [y,m,d] = dateStr.split('-').map(Number);
+          return monthNamesShort[m-1] + ' ' + d;
+        }
+        function fmtLong(dateStr){
+          const [y,m,d] = dateStr.split('-').map(Number);
+          const dt = new Date(y, m-1, d);
+          return dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+        }
+      %>
+      <div class="eyebrow">Event details</div>
+
+      <% if (!selectedDate) { %>
+        <div class="empty-state">
+          <h3>No date selected</h3>
+          <p>Click any date with events to view details here. Here's what's coming up:</p>
+        </div>
+        <div class="upcoming-list">
+          <% if (upcoming.length === 0) { %>
+            <div style="font-size:13px;color:var(--ink-soft);padding:10px 0;">No events yet.</div>
+          <% } %>
+          <% upcoming.forEach(function(e) { %>
+            <a class="upcoming-item" href="/?year=<%= e.date.slice(0,4) %>&month=<%= Number(e.date.slice(5,7)) %>&category=all&date=<%= e.date %>">
+              <i class="swatch" style="background:var(--<%= e.category %>)"></i>
+              <span class="d"><%= fmtShort(e.date) %></span>
+              <span><%= e.title %></span>
+            </a>
+          <% }); %>
+        </div>
+        <% if (isAdmin) { %>
+          <div class="admin-actions">
+            <button class="btn btn-navy btn-block" id="panelAddBtn">+ Add event</button>
+          </div>
+        <% } else { %>
+          <div class="lock-note">🔒 Log in as admin to add or edit events</div>
+        <% } %>
+
+      <% } else if (selectedEvents.length === 0) { %>
+        <div class="empty-state">
+          <h3><%= fmtLong(selectedDate) %></h3>
+          <p>Nothing scheduled on this date.</p>
+        </div>
+        <% if (isAdmin) { %>
+          <div class="admin-actions">
+            <button class="btn btn-navy btn-block" id="panelAddBtn" data-date="<%= selectedDate %>">+ Add event</button>
+          </div>
+        <% } else { %>
+          <div class="lock-note">🔒 Log in as admin to add or edit events</div>
+        <% } %>
+
+      <% } else { %>
+        <% selectedEvents.forEach(function(e, idx) { %>
+          <% if (idx > 0) { %><hr class="div"><% } %>
+          <div class="evt-cat-badge" style="background:color-mix(in srgb, var(--<%= e.category %>) 16%, white);color:var(--<%= e.category %>)">
+            <i class="swatch" style="background:var(--<%= e.category %>)"></i><%= CATLABEL[e.category] %>
+          </div>
+          <h3 class="evt-title"><%= e.title %></h3>
+          <div class="meta-row"><span class="ico">&#9201;</span><span><%= e.time || 'Time not set' %></span></div>
+          <div class="meta-row"><span class="ico">&#128205;</span><span><%= e.venue || 'Venue not set' %></span></div>
+          <% if (e.description) { %><div class="evt-desc"><%= e.description %></div><% } %>
+          <hr class="div">
+          <label class="reminder-row">
+            <input type="checkbox" class="rem-checkbox" data-event-id="<%= e.id %>">
+            Email me a reminder
+          </label>
+          <div class="reminder-email" id="rem-email-<%= e.id %>">
+            <input type="email" id="rem-input-<%= e.id %>" placeholder="you@vit.edu.in">
+            <button class="btn btn-navy" data-send-reminder="<%= e.id %>">Save</button>
+          </div>
+          <div class="reminder-confirm" id="rem-confirm-<%= e.id %>">✓ We'll email a reminder before this event.</div>
+
+          <% if (isAdmin) { %>
+            <div class="admin-actions">
+              <button class="btn btn-line" data-edit-event='<%- JSON.stringify(e) %>'>Edit</button>
+              <button class="btn btn-danger" data-delete-event="<%= e.id %>">Delete</button>
+            </div>
+          <% } %>
+        <% }); %>
+
+        <% if (isAdmin) { %>
+          <div class="admin-actions" style="margin-top:18px;">
+            <button class="btn btn-navy btn-block" id="panelAddBtn" data-date="<%= selectedDate %>">+ Add another event</button>
+          </div>
+        <% } else { %>
+          <div class="lock-note">🔒 Log in as admin to add or edit events</div>
+        <% } %>
+      <% } %>
+    </div>
+
+  <div class="card poster-tools-card">
+    <div class="poster-tools">
+      <span class="poster-label">Calendar poster:</span>
+      <select id="posterScope">
+        <option value="year">Full Year</option>
+        <option value="sem-odd">Odd Sem (Jul–Dec)</option>
+        <option value="sem-even">Even Sem (Jan–Jun)</option>
+        <% if (isAdmin) { %>
+          <option value="custom">Custom range&hellip;</option>
+        <% } %>
+      </select>
+      <select id="posterYear"></select>
+
+      <% if (isAdmin) { %>
+        <span id="customRangeFields" class="custom-range-fields">
+          <span class="crf-group">
+            From <select id="customFromMonth"></select><select id="customFromYear"></select>
+          </span>
+          <span class="crf-group">
+            To <select id="customToMonth"></select><select id="customToYear"></select>
+          </span>
+          <input type="text" id="customLabel" placeholder="Label, e.g. Sem 5" maxlength="40">
+        </span>
+      <% } %>
+
+      <button class="btn btn-line" id="downloadPosterBtn">⬇ Download image</button>
+
+      <% if (isAdmin) { %>
+        <button class="btn btn-line" id="posterAddEventBtn">+ Add event</button>
+        <button class="btn btn-navy" id="shareBtn">✉ Share by mail</button>
+      <% } %>
+    </div>
+  </div>
+
+  </div>
+
+</div>
+
+<footer class="site-footer">
+  Department of <%= deptName %> &middot; <%= instituteName %>
+</footer>
+
+<%- include('login') %>
+
+<div class="overlay" id="eventOverlay">
+  <div class="modal">
+    <h2 id="eventModalTitle">Add event</h2>
+    <div class="modal-sub" id="eventModalSub">creates a new entry in the Events table</div>
+    <div class="modal-error" id="eventError"></div>
+    <input type="hidden" id="fId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="fTitle" placeholder="e.g. Coding fest">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="text" id="fTime" placeholder="10:00 am">
+      </div>
+    </div>
+    <div class="field">
+      <label>Category</label>
+      <select id="fCategory">
+        <% categories.forEach(function(cat) { %>
+          <option value="<%= cat %>"><%= cat.charAt(0).toUpperCase() + cat.slice(1) %></option>
+        <% }); %>
+      </select>
+    </div>
+    <div class="field">
+      <label>Venue</label>
+      <input type="text" id="fVenue" placeholder="e.g. CS block lawn">
+    </div>
+    <div class="field">
+      <label>Description</label>
+      <textarea id="fDesc" placeholder="What's this event about?"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-line" id="eventCancelBtn">Cancel</button>
+      <button class="btn btn-navy" id="eventSubmitBtn">Save event</button>
+    </div>
+  </div>
+</div>
+
+<% if (isAdmin) { %>
+<div class="overlay" id="shareOverlay">
+  <div class="modal">
+    <h2>Share calendar by email</h2>
+    <div class="modal-sub">generates the poster for the current selection and emails it as a PNG</div>
+    <div class="modal-error" id="shareError"></div>
+    <div class="modal-success" id="shareSuccess">✓ Sent successfully.</div>
+
+    <div class="field">
+      <label>Add recipient</label>
+      <div class="share-add-row">
+        <input type="email" id="shareEmailInput" placeholder="name@vit.edu.in">
+        <button class="btn btn-line" id="shareAddBtn">Add</button>
+        <button class="btn btn-line" id="shareSaveContactBtn" title="Save to mail book">📇 Save</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <div class="share-recipients-head">
+        <label>Sending to</label>
+        <button class="btn-link" id="shareMailBookBtn" type="button">Mail book &rsaquo;</button>
+      </div>
+      <div class="share-chips" id="shareRecipients"></div>
+      <div class="mailbook-list" id="mailBookList"></div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-line" id="shareCancelBtn">Cancel</button>
+      <button class="btn btn-navy" id="shareSendBtn">Send</button>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<script>
+  window.__CAL_STATE__ = {
+    year: <%- JSON.stringify(year) %>,
+    month: <%- JSON.stringify(month) %>,
+    category: <%- JSON.stringify(category) %>,
+    selectedDate: <%- JSON.stringify(selectedDate) %>,
+    instituteName: <%- JSON.stringify(instituteName) %>,
+    deptName: <%- JSON.stringify(deptName) %>,
+    deptShort: <%- JSON.stringify(deptShort) %>
+  };
+</script>
+
+<div id="posterRoot" aria-hidden="true"></div>
+
+<script src="/script.js"></script>
+</body>
+</html>

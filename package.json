@@ -1,0 +1,21 @@
+{
+  "name": "vit-cse-ai-dept-calendar",
+  "version": "1.0.0",
+  "description": "Vishwakarma Institute of Technology - CSE (AI) Department Event Calendar. Simplified single-file backend.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "node --watch server/server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.6.1",
+    "ejs": "^3.1.10",
+    "express": "^4.22.2",
+    "express-session": "^1.19.0",
+    "method-override": "^3.0.0",
+    "mysql2": "^3.23.4",
+    "nodemailer": "^9.0.6"
+  }
+}
